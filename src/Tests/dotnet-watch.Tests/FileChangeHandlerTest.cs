@@ -24,7 +24,7 @@ namespace Microsoft.DotNet.Watcher.Tools
                 {
                     writtenBytes = bytes;
                 });
-            var fileContentHandler = new FileChangeHandler(NullReporter.Singleton);
+            var fileContentHandler = new StaticFileHandler(NullReporter.Singleton);
             var context = new DotNetWatchContext
             {
                 BrowserRefreshServer = server.Object,
@@ -53,7 +53,7 @@ namespace Microsoft.DotNet.Watcher.Tools
                 {
                     writtenBytes = bytes;
                 });
-            var fileContentHandler = new FileChangeHandler(NullReporter.Singleton);
+            var fileContentHandler = new StaticFileHandler(NullReporter.Singleton);
             var context = new DotNetWatchContext
             {
                 BrowserRefreshServer = server.Object,

@@ -74,6 +74,8 @@ Examples:
 
         public static async Task<int> Main(string[] args)
         {
+            Console.WriteLine("dotnet-watch " + Environment.ProcessId);
+
             try
             {
                 using var program = new Program(PhysicalConsole.Singleton, Directory.GetCurrentDirectory());
