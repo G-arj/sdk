@@ -42,6 +42,7 @@ namespace Microsoft.DotNet.Watcher.Tools
                 _initializeTask =  CreateMSBuildProject(project.FilePath, _reporter);
 
                 context.ProcessSpec.EnvironmentVariables["COMPLUS_ForceEnc"] = "1";
+                context.ProcessSpec.EnvironmentVariables["COMPlus_MD_DeltaCheck"] = "0";
             }
 
             return default;
@@ -128,17 +129,15 @@ namespace Microsoft.DotNet.Watcher.Tools
                     _reporter.Verbose(diagnostic.GetMessage());
                 }
 
-                _reporter.Verbose("diagnostics");
-
                 return false;
             }
 
             var bytes = JsonSerializer.SerializeToUtf8Bytes(new UpdateDelta
             {
                 ModulePath = _emitBaseline.OriginalMetadata.Name,
-                MetaStream = metaStream.ToArray(),
-                IlStream = ilStream.ToArray(),
-                PdbStream = pdbStream.ToArray(),
+                MetaBytes = metaStream.ToArray(),
+                IlBytes = ilStream.ToArray(),
+                PdbBytes = pdbStream.ToArray(),
             }, new JsonSerializerOptions(JsonSerializerDefaults.Web));
 
             await context.BrowserRefreshServer.SendMessage(bytes);
@@ -203,9 +202,10 @@ namespace Microsoft.DotNet.Watcher.Tools
             public string Type => "UpdateCompilation";
 
             public string ModulePath { get; init;  }
-            public byte[] MetaStream { get; init; }
-            public byte[] IlStream { get; init; }
-            public byte[] PdbStream { get; init; }
+            public byte[] MetaBytes { get; init; }
+            public byte[] IlBytes { get; init; }
+
+            public byte[] PdbBytes { get; init; }
         }
     }
 }

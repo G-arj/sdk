@@ -68,8 +68,8 @@ namespace Microsoft.DotNet.Watcher.Tools
                         context.ProcessSpec.EnvironmentVariables["ASPNETCORE_AUTO_RELOAD_WS_ENDPOINT"] = serverUrl;
 
                         var pathToMiddleware = Path.Combine(AppContext.BaseDirectory, "middleware", "Microsoft.AspNetCore.Watch.BrowserRefresh.dll");
-                        context.ProcessSpec.EnvironmentVariables["DOTNET_STARTUP_HOOKS"] = pathToMiddleware;
-                        context.ProcessSpec.EnvironmentVariables["ASPNETCORE_HOSTINGSTARTUPASSEMBLIES"] = "Microsoft.AspNetCore.Watch.BrowserRefresh";
+                        // context.ProcessSpec.EnvironmentVariables["DOTNET_STARTUP_HOOKS"] = pathToMiddleware;
+                        // context.ProcessSpec.EnvironmentVariables["ASPNETCORE_HOSTINGSTARTUPASSEMBLIES"] = "Microsoft.AspNetCore.Watch.BrowserRefresh";
                     }
                 }
             }
