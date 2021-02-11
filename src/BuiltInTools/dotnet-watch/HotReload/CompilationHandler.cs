@@ -2,20 +2,20 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection.Metadata;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Tools.Internal;
-using Microsoft.CodeAnalysis.MSBuild;
-using Microsoft.CodeAnalysis;
-using System.Collections.Generic;
-using System.Linq;
-using Microsoft.CodeAnalysis.Text;
-using System.Text;
-using System.IO;
-using Microsoft.CodeAnalysis.Emit;
-using System.Reflection.Metadata;
-using System.Text.Json;
 using Microsoft.Build.Locator;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Emit;
+using Microsoft.CodeAnalysis.MSBuild;
+using Microsoft.CodeAnalysis.Text;
+using Microsoft.Extensions.Tools.Internal;
 
 namespace Microsoft.DotNet.Watcher.Tools
 {
@@ -33,8 +33,15 @@ namespace Microsoft.DotNet.Watcher.Tools
             _compilationChangeMaker = new CompilationChangeMaker(reporter);
         }
 
-        public ValueTask InitializeAsync(DotNetWatchContext context)
+        public async ValueTask InitializeAsync(DotNetWatchContext context)
         {
+            if (_initializeTask is not null)
+            {
+                var (msw, project) = await _initializeTask;
+                msw.Dispose();
+                _emitBaseline.OriginalMetadata.Dispose();
+            }
+
             if (context.FileSet.IsNetCoreApp31OrNewer) // needs to be net5.0
             {
                 // Todo: figure this out for multi-project workspaces
@@ -42,10 +49,9 @@ namespace Microsoft.DotNet.Watcher.Tools
                 _initializeTask =  CreateMSBuildProject(project.FilePath, _reporter);
 
                 context.ProcessSpec.EnvironmentVariables["COMPLUS_ForceEnc"] = "1";
-                context.ProcessSpec.EnvironmentVariables["COMPlus_MD_DeltaCheck"] = "0";
             }
 
-            return default;
+            return;
         }
 
         public async ValueTask<bool> TryHandleFileChange(DotNetWatchContext context, FileItem file, CancellationToken cancellationToken)
@@ -62,10 +68,12 @@ namespace Microsoft.DotNet.Watcher.Tools
             // Read updated document
             if (!string.IsNullOrEmpty(file.FilePath))
             {
+                
                 var documentToUpdate = _project.Documents.FirstOrDefault(d => d.FilePath == file.FilePath);
                 if (documentToUpdate != null)
                 {
                     var text = await ReadFileTextWithRetry(file.FilePath);
+
                     var updatedDocument = documentToUpdate.WithText(SourceText.From(text, Encoding.UTF8));
                     var diff = await updatedDocument.GetTextChangesAsync(documentToUpdate);
                     _reporter.Verbose(string.Join(" ", diff.Select(d => d.NewText)));
@@ -76,13 +84,12 @@ namespace Microsoft.DotNet.Watcher.Tools
 
             if (_emitBaseline is null)
             {
-                var initialPeStream = new MemoryStream();
-                var initialPdbStream = new MemoryStream();
-                var baselineCompilation = await _project.GetCompilationAsync(cancellationToken);
-                var emitResult = baselineCompilation.Emit(initialPeStream, initialPdbStream);
+                //var initialPeStream = new MemoryStream();
+                //var initialPdbStream = new MemoryStream();
+                //var baselineCompilation = await _project.GetCompilationAsync(cancellationToken);
+                //var emitResult = baselineCompilation.Emit(initialPeStream, initialPdbStream);
 
-                initialPeStream.Seek(0, SeekOrigin.Begin);
-                var baselineMetadata = ModuleMetadata.CreateFromStream(initialPeStream);
+                var baselineMetadata = ModuleMetadata.CreateFromFile(_project.OutputFilePath);
                 _emitBaseline = EmitBaseline.CreateInitialBaseline(baselineMetadata, handle => default);
             }
 
@@ -156,7 +163,7 @@ namespace Microsoft.DotNet.Watcher.Tools
             //       otherwise, MSBuildWorkspace won't MEF compose.
             MSBuildLocator.RegisterInstance(instance);
 
-            Console.WriteLine($"Opening project at {projectPath}...");
+            reporter.Verbose($"Opening project at {projectPath}...");
             var msw = MSBuildWorkspace.Create();
 
             msw.WorkspaceFailed += (_sender, diag) =>
@@ -164,18 +171,20 @@ namespace Microsoft.DotNet.Watcher.Tools
                 var warning = diag.Diagnostic.Kind == WorkspaceDiagnosticKind.Warning;
                 if (!warning)
                 {
-                    Console.WriteLine($"msbuild failed opening project {projectPath}");
+                    reporter.Verbose($"msbuild failed opening project {projectPath}");
                 }
 
-                Console.WriteLine($"MSBuildWorkspace {diag.Diagnostic.Kind}: {diag.Diagnostic.Message}");
+                reporter.Verbose($"MSBuildWorkspace {diag.Diagnostic.Kind}: {diag.Diagnostic.Message}");
 
                 if (!warning)
                 {
-                    throw new InvalidOperationException("failed workspace");
+                    throw new InvalidOperationException("failed workspace.");
                 }
             };
 
             var project = await msw.OpenProjectAsync(projectPath);
+            await Parallel.ForEachAsync(project.Documents, default(CancellationToken), async (p, cts) => await p.GetTextAsync(cts));
+
             return (msw, project);
         }
 

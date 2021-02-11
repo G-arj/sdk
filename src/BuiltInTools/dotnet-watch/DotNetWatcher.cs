@@ -89,10 +89,7 @@ namespace Microsoft.DotNet.Watcher
                     return;
                 }
 
-                if (context.Iteration == 0)
-                {
-                    await _hotReload.InitializeAsync(context);
-                }
+                await _hotReload.InitializeAsync(context);
 
                 using (var currentRunCancellationSource = new CancellationTokenSource())
                 using (var combinedCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(
