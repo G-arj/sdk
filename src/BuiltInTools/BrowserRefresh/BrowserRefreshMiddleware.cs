@@ -59,25 +59,25 @@ namespace Microsoft.AspNetCore.Watch.BrowserRefresh
 
         internal static bool IsBrowserRequest(HttpContext context)
         {
-            var request = context.Request;
-            if (!HttpMethods.IsGet(request.Method) && !HttpMethods.IsPost(request.Method))
-            {
-                return false;
-            }
+            //var request = context.Request;
+            //if (!HttpMethods.IsGet(request.Method) && !HttpMethods.IsPost(request.Method))
+            //{
+            //    return false;
+            //}
 
-            var typedHeaders = request.GetTypedHeaders();
-            if (!(typedHeaders.Accept is IList<MediaTypeHeaderValue> acceptHeaders))
-            {
-                return false;
-            }
+            //var typedHeaders = request.GetTypedHeaders();
+            //if (!(typedHeaders.Accept is IList<MediaTypeHeaderValue> acceptHeaders))
+            //{
+            //    return false;
+            //}
 
-            for (var i = 0; i < acceptHeaders.Count; i++)
-            {
-                if (acceptHeaders[i].IsSubsetOf(_textHtmlMediaType))
-                {
-                    return true;
-                }
-            }
+            //for (var i = 0; i < acceptHeaders.Count; i++)
+            //{
+            //    if (acceptHeaders[i].IsSubsetOf(_textHtmlMediaType))
+            //    {
+            //        return true;
+            //    }
+            //}
 
             return false;
         }

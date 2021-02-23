@@ -35,11 +35,25 @@ namespace Microsoft.DotNet.Watcher.Tools
 
         public async ValueTask InitializeAsync(DotNetWatchContext context)
         {
-            if (_initializeTask is not null)
+            if (context.Iteration == 0)
             {
+                var instance = MSBuildLocator.QueryVisualStudioInstances().First();
+
+                _reporter.Verbose($"Using MSBuild at '{instance.MSBuildPath}' to load projects.");
+
+                // NOTE: Be sure to register an instance with the MSBuildLocator
+                //       before calling MSBuildWorkspace.Create()
+                //       otherwise, MSBuildWorkspace won't MEF compose.
+                MSBuildLocator.RegisterInstance(instance);
+            }
+            else if (_initializeTask is not null)
+            {
+                _emitBaseline?.OriginalMetadata?.Dispose();
+                _emitBaseline = null;
+                
                 var (msw, project) = await _initializeTask;
                 msw.Dispose();
-                _emitBaseline.OriginalMetadata.Dispose();
+                _initializeTask = null;
             }
 
             if (context.FileSet.IsNetCoreApp31OrNewer) // needs to be net5.0
@@ -56,7 +70,8 @@ namespace Microsoft.DotNet.Watcher.Tools
 
         public async ValueTask<bool> TryHandleFileChange(DotNetWatchContext context, FileItem file, CancellationToken cancellationToken)
         {
-            if (!file.FilePath.EndsWith(".cs", StringComparison.Ordinal))
+            if (!file.FilePath.EndsWith(".cs", StringComparison.Ordinal) &&
+                !file.FilePath.EndsWith(".razor", StringComparison.Ordinal))
             {
                 return false;
             }
@@ -84,11 +99,6 @@ namespace Microsoft.DotNet.Watcher.Tools
 
             if (_emitBaseline is null)
             {
-                //var initialPeStream = new MemoryStream();
-                //var initialPdbStream = new MemoryStream();
-                //var baselineCompilation = await _project.GetCompilationAsync(cancellationToken);
-                //var emitResult = baselineCompilation.Emit(initialPeStream, initialPdbStream);
-
                 var baselineMetadata = ModuleMetadata.CreateFromFile(_project.OutputFilePath);
                 _emitBaseline = EmitBaseline.CreateInitialBaseline(baselineMetadata, handle => default);
             }
@@ -154,15 +164,6 @@ namespace Microsoft.DotNet.Watcher.Tools
 
         private static async Task<(MSBuildWorkspace, Project)> CreateMSBuildProject(string projectPath, IReporter reporter)
         {
-            var instance = MSBuildLocator.QueryVisualStudioInstances().First();
-
-            reporter.Verbose($"Using MSBuild at '{instance.MSBuildPath}' to load projects.");
-
-            // NOTE: Be sure to register an instance with the MSBuildLocator
-            //       before calling MSBuildWorkspace.Create()
-            //       otherwise, MSBuildWorkspace won't MEF compose.
-            MSBuildLocator.RegisterInstance(instance);
-
             reporter.Verbose($"Opening project at {projectPath}...");
             var msw = MSBuildWorkspace.Create();
 
